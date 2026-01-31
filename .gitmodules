@@ -1,0 +1,3 @@
+[submodule "traceweave-backend"]
+	path = traceweave-backend
+	url = https://github.com/23cse311-team11/traceweave-backend.git
