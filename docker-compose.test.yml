@@ -1,0 +1,85 @@
+version: '3.8'
+
+# ─────────────────────────────────────────────────────────────
+# TraceWeave — Integration Test Stack
+#
+# Spins up: core-api, ai-service, gateway (nginx), mongo
+# Uses a separate mongo volume so test data is isolated.
+#
+# Run with:
+#   docker-compose -f docker-compose.yml -f docker-compose.test.yml up --build --abort-on-container-exit
+# ─────────────────────────────────────────────────────────────
+
+services:
+
+  core-api:
+    # Inherit from base compose, override env for tests
+    env_file:
+      - ./backend/core-api/.env.test
+    environment:
+      - NODE_ENV=test
+      - PORT=4000
+      - MONGO_URL=mongodb://mongo-test:27017/traceweave_test
+    depends_on:
+      mongo-test:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "node -e \"require('http').get('http://localhost:4000/health', (r) => process.exit(r.statusCode===200?0:1))\"" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+
+  ai-service:
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health')\" || exit 1" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  gateway:
+    depends_on:
+      core-api:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+
+  # ── Isolated test MongoDB (separate from dev mongo) ─────────
+  mongo-test:
+    image: mongo:6
+    container_name: traceweave-mongo-test
+    ports:
+      - "27018:27017" # Different host port to avoid dev collisions
+    volumes:
+      - mongo_test_data:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # ── Test Runner Container ────────────────────────────────────
+  test-runner:
+    image: node:18-alpine
+    container_name: traceweave-test-runner
+    working_dir: /app
+    volumes:
+      - ./backend/core-api:/app
+    environment:
+      - NODE_ENV=test
+      - GATEWAY_URL=http://gateway:80
+      - CORE_API_URL=http://core-api:4000
+      - AI_SERVICE_URL=http://ai-service:5000
+      - MONGO_URL=mongodb://mongo-test:27017/traceweave_test
+    depends_on:
+      gateway:
+        condition: service_started
+      core-api:
+        condition: service_healthy
+    command: >
+      sh -c "npm install && npm run test:cross-service"
+
+volumes:
+  mongo_test_data:
