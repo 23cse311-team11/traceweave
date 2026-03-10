@@ -1,58 +1,43 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  # -----------------------------------------------------------------
-  # 1. Core API - Node.js
-  # -----------------------------------------------------------------
+
   core-api:
     build:
       context: ./backend/core-api
       dockerfile: Dockerfile
-    container_name: traceweave-core
-    ports:
-      - "4000:4000"
-    environment:
-      - NODE_ENV=development
-    depends_on:
-      - mongo
-    volumes:
-      - ./backend/core-api/src:/app/src # Hot Reload
+    restart: unless-stopped
+    env_file:
+      - ./backend/core-api/.env.prod
+    networks:
+      - traceweave-network
 
-  # -----------------------------------------------------------------
-  # 2. Proxy - Python
-  # -----------------------------------------------------------------
-  proxy-service:
-    build:
-      context: ./backend/proxy-service
-      dockerfile: Dockerfile
-    container_name: traceweave-proxy
-    ports:
-      - "8080:8080"  # Proxy Port
-      - "8081:8081"  # Web Interface
-    volumes:
-      - ./backend/proxy-service:/app
-
-  # -----------------------------------------------------------------
-  # 3. AI - Python
-  # -----------------------------------------------------------------
   ai-service:
     build:
       context: ./backend/ai-service
       dockerfile: Dockerfile
-    container_name: traceweave-ai
-    ports:
-      - "5000:5000"
-    volumes:
-      - ./backend/ai-service:/app
+    restart: unless-stopped
+    env_file:
+      - ./backend/ai-service/.env.prod
+    networks:
+      - traceweave-network
 
-  # -----------------------------------------------------------------
-  # 4. API Gateway - Nginx
-  # -----------------------------------------------------------------
+  proxy-service:
+    build:
+      context: ./backend/proxy-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./backend/proxy-service/.env.prod
+    networks:
+      - traceweave-network
+
   gateway:
     image: nginx:alpine
-    container_name: traceweave-gateway
+    restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"   
     volumes:
       - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
