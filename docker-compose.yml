@@ -40,12 +40,34 @@ services:
       - "443:443"   
     volumes:
       - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - core-api
       - ai-service
-    networks:
-      - traceweave-network
+      - frontend
 
-networks:
-  traceweave-network:
+  # -----------------------------------------------------------------
+  # DATA LAYER
+  # -----------------------------------------------------------------
+
+  mongo:
+    image: mongo:6
+    container_name: traceweave-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+  #------------------------------------------------------------------
+  #FRONTEND
+  #------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: traceweave-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - core-api
+      - ai-service  
+volumes:
+  mongo_data:
