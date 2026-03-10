@@ -27,8 +27,8 @@ services:
       dockerfile: Dockerfile
     container_name: traceweave-proxy
     ports:
-      - "8080:8080"  # Proxy Port
-      - "8081:8081"  # Web Interface
+      - "8080:8080" # Proxy Port
+      - "8081:8081" # Web Interface
     volumes:
       - ./backend/proxy-service:/app
 
@@ -71,5 +71,18 @@ services:
     volumes:
       - mongo_data:/data/db
 
+  postgres:
+    image: postgres:15
+    container_name: traceweave-postgres
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: test
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
 volumes:
   mongo_data:
+  postgres_data:

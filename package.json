@@ -1,1 +1,9 @@
-{}
+{
+    "name": "traceweave-root",
+    "private": true,
+    "scripts": {
+        "test:unit": "npm test --prefix frontend",
+        "test:e2e": "npm run test:e2e --prefix frontend",
+        "test": "npm run test:unit && npm run test:e2e"
+    }
+}
