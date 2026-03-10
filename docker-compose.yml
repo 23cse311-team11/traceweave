@@ -1,64 +1,64 @@
 version: "3.8"
-
 services:
-
+  # -----------------------------------------------------------------
+  # 1. Core API - Node.js
+  # -----------------------------------------------------------------
   core-api:
     build:
       context: ./backend/core-api
       dockerfile: Dockerfile
-    restart: unless-stopped
-    env_file:
-      - ./backend/core-api/.env.prod
-    networks:
-      - traceweave-network
-
-  ai-service:
-    build:
-      context: ./backend/ai-service
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    env_file:
-      - ./backend/ai-service/.env.prod
-    networks:
-      - traceweave-network
-
+    container_name: traceweave-core
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./backend/core-api/src:/app/src # Hot Reload
+  # -----------------------------------------------------------------
+  # 2. Proxy - Python
+  # -----------------------------------------------------------------
   proxy-service:
     build:
       context: ./backend/proxy-service
       dockerfile: Dockerfile
-    restart: unless-stopped
-    env_file:
-      - ./backend/proxy-service/.env.prod
-    networks:
-      - traceweave-network
-
+    container_name: traceweave-proxy
+    ports:
+      - "8080:8080" # Proxy Port
+      - "8081:8081" # Web Interface
+    volumes:
+      - ./backend/proxy-service:/app
+  # -----------------------------------------------------------------
+  # 3. AI - Python
+  # -----------------------------------------------------------------
+  ai-service:
+    build:
+      context: ./backend/ai-service
+      dockerfile: Dockerfile
+    container_name: traceweave-ai
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/ai-service:/app
+  # -----------------------------------------------------------------
+  # 4. API Gateway - Nginx
+  # -----------------------------------------------------------------
   gateway:
     image: nginx:alpine
+    container_name: traceweave-gateway
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"   
+      - "443:443"
     volumes:
       - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - core-api
       - ai-service
       - frontend
-
-  # -----------------------------------------------------------------
-  # DATA LAYER
-  # -----------------------------------------------------------------
-
-  mongo:
-    image: mongo:6
-    container_name: traceweave-mongo
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-  #------------------------------------------------------------------
-  #FRONTEND
-  #------------------------------------------------------------------
+  # ------------------------------------------------------------------
+  # FRONTEND
+  # ------------------------------------------------------------------
   frontend:
     build:
       context: ./frontend
@@ -68,6 +68,6 @@ services:
       - "3000:3000"
     depends_on:
       - core-api
-      - ai-service  
+      - ai-service
 volumes:
   mongo_data:
