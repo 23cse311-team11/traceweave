@@ -58,6 +58,7 @@ services:
     depends_on:
       - core-api
       - ai-service
+      - frontend
 
   # -----------------------------------------------------------------
   # DATA LAYER
@@ -70,6 +71,18 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
-
+  #------------------------------------------------------------------
+  #FRONTEND
+  #------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: traceweave-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - core-api
+      - ai-service  
 volumes:
   mongo_data:
