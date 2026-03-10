@@ -12,8 +12,6 @@ services:
       - "4000:4000"
     environment:
       - NODE_ENV=development
-    depends_on:
-      - mongo
     volumes:
       - ./backend/core-api/src:/app/src # Hot Reload
   # -----------------------------------------------------------------
@@ -58,16 +56,6 @@ services:
       - core-api
       - ai-service
       - frontend
-  # -----------------------------------------------------------------
-  # DATA LAYER
-  # -----------------------------------------------------------------
-  mongo:
-    image: mongo:6
-    container_name: traceweave-mongo
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
   # ------------------------------------------------------------------
   # FRONTEND
   # ------------------------------------------------------------------
