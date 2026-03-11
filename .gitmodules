@@ -4,3 +4,6 @@
 [submodule "frontend"]
 	path = frontend
 	url = https://github.com/23cse311-team11/traceweave-frontend.git
+[submodule "desktop"]
+	path = desktop
+	url = https://github.com/23cse311-team11/traceweave-desktop.git
