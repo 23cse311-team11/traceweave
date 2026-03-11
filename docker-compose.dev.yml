@@ -1,17 +1,106 @@
 version: '3.8'
 
 services:
+
+  # -----------------------------
+  # Core API - Node.js
+  # -----------------------------
   core-api:
-    # Mount source code for Hot Reloading
+    build:
+      context: ./backend/core-api
+      dockerfile: Dockerfile
+    container_name: traceweave-core-dev
+    ports:
+      - "4000:4000"
     volumes:
       - ./backend/core-api/src:/app/src
       - ./backend/core-api/package.json:/app/package.json
     env_file:
       - ./backend/core-api/.env.docker
     command: npm run dev
+    environment:
+      - NODE_ENV=development
+      - MONGO_URI=mongodb://mongo:27017/traceweave
+    depends_on:
+      - mongo
 
+  # -----------------------------
+  # AI Service
+  # -----------------------------
+  ai-service:
+    build:
+      context: ./backend/ai-service
+      dockerfile: Dockerfile
+    container_name: traceweave-ai-dev
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/ai-service:/app
+
+  # -----------------------------
+  # Proxy Service
+  # -----------------------------
   proxy-service:
+    build:
+      context: ./backend/proxy-service
+      dockerfile: Dockerfile
+    container_name: traceweave-proxy-dev
+    ports:
+      - "8080:8080"
+      - "8081:8081"
     volumes:
       - ./backend/proxy-service:/app
     environment:
       - ENV=development
+    depends_on:
+      - core-api
+
+  # -----------------------------
+  # Frontend
+  # -----------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: traceweave-frontend-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - core-api
+      - ai-service
+
+  # -----------------------------
+  # Local MongoDB
+  # -----------------------------
+  mongo:
+    image: mongo:6.0
+    container_name: traceweave-mongo-dev
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data_dev:/data/db
+
+  # -----------------------------
+  # Gateway (Dev Nginx)
+  # -----------------------------
+  gateway:
+    image: nginx:alpine
+    container_name: traceweave-gateway-dev
+    ports:
+      - "80:80"
+    volumes:
+      - ./gateway/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - core-api
+      - ai-service
+      - frontend
+
+volumes:
+  mongo_data_dev:
