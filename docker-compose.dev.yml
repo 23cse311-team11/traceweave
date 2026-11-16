@@ -17,12 +17,17 @@ services:
       - ./backend/core-api/package.json:/app/package.json
     env_file:
       - ./backend/core-api/.env.docker
-    command: npm run dev
+    command: sh -c "npx prisma db push && npm run dev"
     environment:
       - NODE_ENV=development
       - MONGO_URI=mongodb://mongo:27017/traceweave
+      - DATABASE_URL=postgresql://admin:password@postgres:5432/traceweave
+      - DIRECT_URL=postgresql://admin:password@postgres:5432/traceweave
     depends_on:
-      - mongo
+      mongo:
+        condition: service_started
+      postgres:
+        condition: service_healthy
 
   # -----------------------------
   # AI Service
@@ -76,6 +81,27 @@ services:
       - ai-service
 
   # -----------------------------
+  # Local PostgreSQL
+  # -----------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: traceweave-postgres-dev
+    restart: unless-stopped
+    ports:
+      - "5431:5432"
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=traceweave
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d traceweave"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  # -----------------------------
   # Local MongoDB
   # -----------------------------
   mongo:
@@ -104,3 +130,4 @@ services:
 
 volumes:
   mongo_data_dev:
+  postgres_data_dev:

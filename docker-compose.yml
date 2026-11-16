@@ -5,12 +5,23 @@ services:
       context: ./backend/core-api
       dockerfile: Dockerfile
     container_name: traceweave-core
+    restart: unless-stopped
     ports:
       - "4000:4000"
     environment:
       - NODE_ENV=development
-    volumes:
-      - ./backend/core-api/src:/app/src # Hot Reload
+      - MONGO_URI=mongodb://mongo:27017/traceweave
+      - DATABASE_URL=postgresql://admin:password@postgres:5432/traceweave
+      - DIRECT_URL=postgresql://admin:password@postgres:5432/traceweave
+    env_file:
+      - ./backend/core-api/.env.docker
+    command: sh -c "npx prisma db push && npm run dev"
+    depends_on:
+      mongo:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+
   # -----------------------------------------------------------------
   # 2. Proxy - Python
   # -----------------------------------------------------------------
@@ -19,11 +30,11 @@ services:
       context: ./backend/proxy-service
       dockerfile: Dockerfile
     container_name: traceweave-proxy
+    restart: unless-stopped
     ports:
       - "8080:8080" # Proxy Port
       - "8081:8081" # Web Interface
-    volumes:
-      - ./backend/proxy-service:/app
+
   # -----------------------------------------------------------------
   # 3. AI - Python
   # -----------------------------------------------------------------
@@ -32,12 +43,60 @@ services:
       context: ./backend/ai-service
       dockerfile: Dockerfile
     container_name: traceweave-ai
+    restart: unless-stopped
     ports:
       - "5000:5000"
-    volumes:
-      - ./backend/ai-service:/app
+
   # -----------------------------------------------------------------
-  # 4. API Gateway - Nginx
+  # 4. Local PostgreSQL
+  # -----------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: traceweave-postgres
+    restart: unless-stopped
+    ports:
+      - "5431:5432"
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=traceweave
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d traceweave"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  # -----------------------------------------------------------------
+  # 5. Local MongoDB
+  # -----------------------------------------------------------------
+  mongo:
+    image: mongo:6.0
+    container_name: traceweave-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  # ------------------------------------------------------------------
+  # 6. FRONTEND
+  # ------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: traceweave-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - core-api
+      - ai-service
+
+  # -----------------------------------------------------------------
+  # 7. API Gateway - Nginx
   # -----------------------------------------------------------------
   gateway:
     image: nginx:alpine
@@ -45,26 +104,13 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"
     volumes:
-      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./gateway/nginx.dev.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - core-api
       - ai-service
       - frontend
-  # ------------------------------------------------------------------
-  # FRONTEND
-  # ------------------------------------------------------------------
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: traceweave-frontend
-    ports:
-      - "3000:3000"
-    depends_on:
-      - core-api
-      - ai-service
+
 volumes:
   mongo_data:
+  postgres_data:
