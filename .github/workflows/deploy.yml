@@ -24,5 +24,6 @@ jobs:
             git reset --hard origin/main
             git submodule update --init --recursive
             docker compose up -d --build || docker-compose up -d --build
+            docker compose restart gateway || docker-compose restart gateway
             docker image prune -f
             docker ps
