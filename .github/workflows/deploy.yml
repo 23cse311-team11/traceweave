@@ -24,6 +24,15 @@ jobs:
             git reset --hard origin/main
             git submodule update --init --recursive
             rm -f ~/traceweave/frontend/.env
+            sudo mkdir -p /var/www/certbot
+            if [ ! -f /etc/letsencrypt/live/app.traceweavesupply.tech/fullchain.pem ]; then
+              sudo mkdir -p /etc/letsencrypt/live/app.traceweavesupply.tech
+              sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout /etc/letsencrypt/live/app.traceweavesupply.tech/privkey.pem \
+                -out /etc/letsencrypt/live/app.traceweavesupply.tech/fullchain.pem \
+                -subj '/CN=app.traceweavesupply.tech'
+              sudo chmod -R 755 /etc/letsencrypt
+            fi
             docker compose up -d --build || docker-compose up -d --build
             docker compose restart gateway || docker-compose restart gateway
             docker image prune -f
