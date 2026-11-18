@@ -16,12 +16,14 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            set -e
             if [ ! -d ~/traceweave/.git ]; then
               git clone --recurse-submodules https://github.com/23cse311-team11/traceweave.git ~/traceweave
             fi
             cd ~/traceweave
             git fetch origin main
             git reset --hard origin/main
+            git submodule sync --recursive
             git submodule update --init --recursive
             rm -f ~/traceweave/frontend/.env
             sudo mkdir -p /var/www/certbot
@@ -33,7 +35,8 @@ jobs:
                 -subj '/CN=app.traceweavesupply.tech'
               sudo chmod -R 755 /etc/letsencrypt
             fi
-            docker compose up -d --build || docker-compose up -d --build
+            docker compose build frontend || docker-compose build frontend
+            docker compose up -d --force-recreate || docker-compose up -d --force-recreate
             docker compose restart gateway || docker-compose restart gateway
             docker image prune -f
             docker ps
