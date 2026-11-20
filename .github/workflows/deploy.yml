@@ -23,8 +23,10 @@ jobs:
             cd ~/traceweave
             git fetch origin main
             git reset --hard origin/main
+            git submodule foreach --recursive git reset --hard
+            git submodule foreach --recursive git clean -fd
             git submodule sync --recursive
-            git submodule update --init --recursive
+            git submodule update --init --recursive --force
             rm -f ~/traceweave/frontend/.env
             sudo mkdir -p /var/www/certbot
             if [ ! -f /etc/letsencrypt/live/app.traceweavesupply.tech/fullchain.pem ]; then
@@ -36,7 +38,7 @@ jobs:
               sudo chmod -R 755 /etc/letsencrypt
             fi
             docker compose build frontend || docker-compose build frontend
-            docker compose up -d --force-recreate || docker-compose up -d --force-recreate
+            docker compose up -d --force-recreate frontend || docker-compose up -d --force-recreate frontend
             docker compose restart gateway || docker-compose restart gateway
             docker image prune -f
             docker ps
